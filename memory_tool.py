@@ -28,12 +28,19 @@ class Memory:
 if __name__ == '__main__':
     memory = Memory()
     
-    #Add some initial memories to the database
     print("\n--- Adding initial memories ---")
-    memory.add_memory("The user's name is Joe and their goal is to build a jarvis-style AI.")
-    memory.add_memory("We are building Jarvis on an Arch Linux machine with an AMD ROCm-compatible GPU.")
+    
+    # --- CHANGE THIS LINE ---
+    # memory.add_memory("The user's name is Joe...") # This method no longer exists
+    # --- TO THIS ---
+    memory.add_memory("The user's name is Joe and their goal is to build a jarvis-style AI.") # CHANGED
+    
+    # --- AND CHANGE THIS LINE ---
+    # memory.add_memory("We are building Jarvis on an Arch Linux...") # This also no longer exists
+    # --- TO THIS ---
+    memory.add_memory("We are building Jarvis on an Arch Linux machine with an AMD ROCm-compatible GPU.") # CHANGED
 
-    # Testing retrieving a memory
+    # The rest of this test block can stay the same
     print("\n--- Testing memory retrieval ---")
     query = "What is the user's goal?"
     retrieved = memory.retrieve_memory(query)

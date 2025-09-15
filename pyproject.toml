@@ -11,5 +11,6 @@ dependencies = [
     "langchain-core>=0.3.76",
     "langchain-ollama>=0.3.8",
     "ollama>=0.5.3",
+    "rich>=14.1.0",
     "sentence-transformers>=5.1.0",
 ]

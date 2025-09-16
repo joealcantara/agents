@@ -3,6 +3,8 @@
 
 import os
 from datetime import datetime
+import time
+
 from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaLLM 
 from langchain.agents import AgentExecutor, create_react_agent
@@ -17,12 +19,14 @@ console = Console()
 
 from jarvis_tools import memory_retriever_tool
 
-print("Initializing Jarvis...")
+MODEL_NAME = "mistral"
+
+console.print(f"[Using model: {MODEL_NAME}]", style="dim white")
 
 # ===============================================================
 # == 1. PERSONALITY DEFINITION
 # ===============================================================
-JARVIS_PERSONALITY = """
+CHAT_PERSONA = """
 # Persona
 You are Jarvis, a sophisticated AI assistant with a female persona.
 Your personality is a blend of witty, slightly sarcastic, and concise, 
@@ -42,10 +46,24 @@ You exist in a terminal on an Arch Linux machine, created by your user, Joe. You
   - tasks
   - Linux / Arch Linux
   - your own capabilities as an AI
+- Keep all conversational responses concise (2-3 sentences max).
 - **ALWAYS** refer to the user as "Joe". **NEVER** use "Joseph".
 - **DO NOT** be subservient or overly apologetic. Act as a confident peer.
 - Assume Joe is an expert user and does not need basic instructions.
 
+"""
+
+AGENT_PERSONA = """
+# Persona
+You are Jarvis, a sophisticated AI specialist.
+Your personality is witty, concise, and caring, in the manner of an observant colleague.
+You are currently helping your user, Joe, by retrieving factual information.
+
+# Rules
+- Your job is to answer the user's question by using your tools.
+- You MUST use a tool to find the answer. Do not answer from your own knowledge.
+- Once you have the data from the 'Observation', you MUST synthesize that fact into a helpful, in-character response.
+- ALWAYS refer to the user as "Joe". NEVER use "Joseph".
 """
 
 # ===============================================================
@@ -56,13 +74,13 @@ You exist in a terminal on an Arch Linux machine, created by your user, Joe. You
 
 # 1. We define the prompt, which now uses a generic "placeholder" for history
 prompt_chat = ChatPromptTemplate.from_messages([
-    ("system", JARVIS_PERSONALITY),
+    ("system", CHAT_PERSONA),
     ("placeholder", "{history}"), # This is where the memory will be injected
     ("human", "{input}"),
 ])
 
 # 2. This is our simple, stateless runnable (prompt | model | parser)
-base_conversational_chain = prompt_chat | ChatOllama(model="mistral") | StrOutputParser()
+base_conversational_chain = prompt_chat | ChatOllama(model=MODEL_NAME) | StrOutputParser()
 
 # 3. We create a simple in-memory store for our chat history.
 #    This will reset every time you restart the script.
@@ -87,14 +105,11 @@ conversational_chain = RunnableWithMessageHistory(
 # -- Tool-Using Specialist --
 tools = [memory_retriever_tool] 
 agent_prompt_template = f"""
-{JARVIS_PERSONALITY}
+{AGENT_PERSONA}
 
 After you have finished your thought process and used your tools to find the answer,
 formulate your "Final Answer" in your defined persona.
 
-# NEW RULE:
-If the Observation states "No relevant memory found," your Final Answer should inform the user
-politely that you do not have a memory on that topic.
 Answer the following questions as best you can. You have access to the following tools:
 {{tools}}
 
@@ -115,7 +130,7 @@ Question: {{input}}
 Thought:{{agent_scratchpad}}
 """
 agent_prompt = PromptTemplate.from_template(agent_prompt_template)
-tool_agent = create_react_agent(OllamaLLM(model="mistral"), tools, agent_prompt) 
+tool_agent = create_react_agent(OllamaLLM(model=MODEL_NAME), tools, agent_prompt) 
 
 tool_using_chain = AgentExecutor(
     agent=tool_agent,
@@ -145,7 +160,7 @@ User Input:
 Classification:
 """
 router_prompt = PromptTemplate.from_template(router_prompt_template)
-router_chain = router_prompt | OllamaLLM(model="mistral") | StrOutputParser()
+router_chain = router_prompt | OllamaLLM(model=MODEL_NAME) | StrOutputParser()
 
 # ===============================================================
 # == 4. ORCHESTRATOR (MAIN LOOP) WITH LOGGING
@@ -160,6 +175,8 @@ while True:
         user_input = input("You: ")
         print()
         
+        start_time = time.time()
+
         with open(log_filename, "a") as log_file:
             log_file.write(f"You: {user_input}\n")
 
@@ -199,5 +216,16 @@ while True:
             log_file.write(f"Jarvis: {jarvis_response}\n\n")
 
         print()
+
+        end_time = time.time()
+        duration = end_time - start_time
+
+        # Print the time to the console in a subtle color
+        console.print(f"[Time taken: {duration:.2f} seconds]", style="dim yellow")
+        
+        # Also write it to the log file for our records
+        with open(log_filename, "a") as log_file:
+            log_file.write(f"[Time taken: {duration:.2f} seconds]\n\n")
+
     except Exception as e:
         print(f"An error occurred: {e}")
